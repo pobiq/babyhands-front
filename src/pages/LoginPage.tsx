@@ -1,18 +1,43 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { login } from "../services/authService";
+import { useAuthStore } from "../stores/authStore";
+import handicon from "/src/assets/handicon.png";
 
 export default function LoginPage() {
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const handicon = "/src/assets/handicon.png";
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 로그인 로직 구현
-    console.log("Login:", { id, password });
-    navigate("/main");
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      // 로그인 API 호출
+      const accessToken = await login({
+        loginId: id,
+        password: password,
+      });
+
+      // 토큰을 store에 저장 (자동으로 localStorage에도 저장됨)
+      setAccessToken(accessToken);
+
+      // 로그인 성공 시 메인 페이지로 이동
+      navigate("/main");
+    } catch (err) {
+      // 에러 처리
+      const errorMessage = err instanceof Error ? err.message : "로그인에 실패했습니다.";
+      setError(errorMessage);
+      console.error("Login error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -87,6 +112,13 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* 에러 메시지 */}
+            {error && (
+              <div className="w-full p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
             {/* 아이디 찾기 / 비밀번호 찾기 */}
             <div className="flex justify-between text-base font-normal text-black">
               <button 
@@ -106,9 +138,10 @@ export default function LoginPage() {
             {/* 로그인 버튼 */}
             <button
               type="submit"
-              className="w-full h-[50px] bg-blue-600 hover:bg-blue-700 text-white text-base font-normal rounded-md transition-colors flex items-center justify-center"
+              disabled={isLoading}
+              className="w-full h-[50px] bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white text-base font-normal rounded-md transition-colors flex items-center justify-center"
             >
-              로그인
+              {isLoading ? "로그인 중..." : "로그인"}
             </button>
 
             {/* 회원가입 버튼 */}
