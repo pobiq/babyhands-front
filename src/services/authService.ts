@@ -16,21 +16,31 @@ export interface LoginRequest {
   password: string;
 }
 
+interface LoginResponse {
+  nickname: string;
+  accessToken: string;
+}
+
 /**
  * 로그인 API 호출
  * @param loginData 로그인 정보 (loginId, password)
  * @returns accessToken
  */
-export const login = async (loginData: LoginRequest): Promise<string> => {
+export const login = async (
+  loginData: LoginRequest
+): Promise<LoginResponse> => {
   try {
-    const response = await apiClient.post<string>("/api/members/login", loginData);
+    const response = await apiClient.post<LoginResponse>(
+      "/api/members/login",
+      loginData
+    );
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      const errorMessage = error.response?.data || error.message || "로그인에 실패했습니다.";
+      const errorMessage =
+        error.response?.data || error.message || "로그인에 실패했습니다.";
       throw new Error(errorMessage);
     }
     throw new Error("로그인에 실패했습니다.");
   }
 };
-
