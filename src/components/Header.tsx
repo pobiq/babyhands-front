@@ -1,16 +1,23 @@
 import { useNavigate } from "react-router-dom";
-import { useAuthStore } from "../stores/authStore";
+import { logout } from "../services/authService";
 
 export default function Header() {
   const navigate = useNavigate();
 
   const username = sessionStorage.getItem("nickname");
 
-  const handleLogout = () => {
-    useAuthStore.getState().clearAuth();
-    sessionStorage.removeItem("nickname");
-
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      // 백엔드 로그아웃 API 호출 (내부에서 클라이언트 상태도 초기화됨)
+      await logout();
+      sessionStorage.removeItem("nickname");
+      navigate("/login");
+    } catch (error) {
+      // 에러가 발생해도 클라이언트 상태는 초기화되므로 로그인 페이지로 이동
+      console.error("Logout error:", error);
+      sessionStorage.removeItem("nickname");
+      navigate("/login");
+    }
   };
 
   return (
