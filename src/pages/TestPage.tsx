@@ -1,52 +1,58 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { submitTest } from "../services/testService";
+import { submitTest, getTestList } from "../services/testService";
 import type { TestAnswer } from "../services/testService";
+
+interface Question {
+  id: number;
+  questionId: number; // 백엔드 SignLanguage ID (sl_id)
+  videoUrl: string; // 비디오 경로
+  options: string[]; // 선택지
+}
 
 export default function TestPage() {
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({}); // 모든 답변 저장
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const navigate = useNavigate();
 
-  const totalQuestions = 5;
+  const totalQuestions = questions.length;
 
-  // 예시 문제 데이터 (실제로는 API에서 가져올 데이터)
-  const questions = [
-    {
-      id: 1,
-      questionId: 1, // 백엔드 SignLanguage ID
-      videoUrl: "", // 실제 비디오 URL로 교체 필요
-      options: ["ㅐ", "ㅖ", "E", "ㅋ"],
-    },
-    {
-      id: 2,
-      questionId: 2,
-      videoUrl: "",
-      options: ["ㅏ", "ㅓ", "ㅗ", "ㅜ"],
-    },
-    {
-      id: 3,
-      questionId: 3,
-      videoUrl: "",
-      options: ["ㄱ", "ㄴ", "ㄷ", "ㄹ"],
-    },
-    {
-      id: 4,
-      questionId: 4,
-      videoUrl: "",
-      options: ["ㅁ", "ㅂ", "ㅅ", "ㅇ"],
-    },
-    {
-      id: 5,
-      questionId: 5,
-      videoUrl: "",
-      options: ["ㅈ", "ㅊ", "ㅋ", "ㅌ"],
-    },
-  ];
+  // API에서 테스트 문제 가져오기
+  useEffect(() => {
+    const fetchTestList = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const testList = await getTestList();
+
+        // 백엔드 응답을 프론트엔드 형식으로 변환
+        const formattedQuestions: Question[] = testList.map((item, index) => ({
+          id: index + 1,
+          questionId: item.sl_id,
+          videoUrl: item.video_path,
+          options: item.answers,
+        }));
+
+        setQuestions(formattedQuestions);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "테스트 문제를 불러오는데 실패했습니다.";
+        setError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTestList();
+  }, []);
 
   const currentQuestionData = questions[currentQuestion - 1];
 
@@ -68,6 +74,21 @@ export default function TestPage() {
       setCurrentQuestion(currentQuestion - 1);
     }
   };
+
+  //  currentQuestion이나 currentQuestionData.videoUrl이 변경될 때마다 비디오를 로드합니다.
+  useEffect(() => {
+    if (videoRef.current && currentQuestionData) {
+      // 비디오 URL이 변경되면
+      if (videoRef.current.src !== currentQuestionData.videoUrl) {
+        // 비디오 소스를 명시적으로 설정
+        videoRef.current.src = currentQuestionData.videoUrl;
+        // 비디오 요소를 다시 로드
+        videoRef.current.load();
+        // 필요하다면 다시 재생
+        // videoRef.current.play().catch(e => console.error("Auto-play failed:", e));
+      }
+    }
+  }, [currentQuestion, currentQuestionData]); // currentQuestion이 변경될 때마다 실행
 
   const handleNext = () => {
     if (currentQuestion < totalQuestions) {
@@ -100,6 +121,14 @@ export default function TestPage() {
       }));
     }
 
+    let correctAnswerCount = 0;
+    // 정답 갯수 카운트
+    questions.forEach((q) => {
+      if (q.options[0] === answers[q.id]) {
+        correctAnswerCount++;
+      }
+    });
+
     // 모든 답변이 있는지 확인
     const allAnswers = questions.map((q) => ({
       questionId: q.questionId,
@@ -122,14 +151,13 @@ export default function TestPage() {
         chooseAnswer: a.chooseAnswer,
       }));
 
-      const result = await submitTest({
+      await submitTest({
         answers: submitData,
-        groupId: 1, // 필요에 따라 동적으로 설정
       });
 
       // 성공 시 결과를 표시하거나 메인 페이지로 이동
       alert(
-        `테스트가 완료되었습니다!\n정답: ${result.correctAnswers}/${result.totalQuestions}\n점수: ${result.score}점`
+        `테스트가 완료되었습니다!\n정답: ${correctAnswerCount}/${totalQuestions}`
       );
       navigate("/main");
     } catch (err) {
@@ -140,6 +168,40 @@ export default function TestPage() {
       setIsSubmitting(false);
     }
   };
+
+  // 로딩 중일 때
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full bg-slate-50 py-10 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-[24px] font-bold text-black mb-4">
+            테스트 문제를 불러오는 중...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러가 있거나 문제가 없을 때
+  if (error || questions.length === 0) {
+    return (
+      <div className="min-h-screen w-full bg-slate-50 py-10">
+        <div className="container mx-auto px-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <p className="text-red-600 text-lg">
+              {error || "테스트 문제를 불러올 수 없습니다."}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-slate-50 py-10">
@@ -161,13 +223,6 @@ export default function TestPage() {
 
             {/* 비디오 플레이어 */}
             <div className="relative bg-black rounded-lg overflow-hidden mb-4">
-              {/* 국립국어원 로고 */}
-              <div className="absolute top-2 right-2 z-10">
-                <div className="bg-white/90 px-2 py-1 rounded text-[10px] text-black font-semibold">
-                  국립국어원
-                </div>
-              </div>
-
               {/* 비디오 */}
               <video
                 ref={videoRef}
@@ -202,7 +257,7 @@ export default function TestPage() {
                     value={option}
                     checked={selectedAnswer === option}
                     onChange={() => handleAnswerSelect(option)}
-                    className="w-5 h-5 text-purple-600 focus:ring-purple-500 focus:ring-2"
+                    className="w-5 h-5 text-purple-600"
                   />
                   <span className="text-[18px] text-black">{option}</span>
                 </label>

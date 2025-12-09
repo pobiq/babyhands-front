@@ -1,11 +1,21 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { logout } from "../services/authService";
 
 export default function Header() {
+  const location = useLocation();
   const navigate = useNavigate();
 
   const username = sessionStorage.getItem("nickname");
 
+  // 경로에 따라 location 값 결정
+  const getCurrentLocation = () => {
+    if (location.pathname === "/test") return "test";
+    return "home";
+  };
+
+  const currentLocation = getCurrentLocation();
+
+  // 로그아웃 클릭시
   const handleLogout = async () => {
     try {
       // 백엔드 로그아웃 API 호출 (내부에서 클라이언트 상태도 초기화됨)
@@ -35,10 +45,17 @@ export default function Header() {
 
           {/* 중앙: 탭 메뉴 */}
           <div className="flex items-center gap-8 text-[20px] text-black">
-            <button className="hover:text-blue-600 transition-colors">
+            <button className="px-4 py-2 rounded-md transition-colors">
               학습하기
             </button>
-            <button className="hover:text-blue-600 transition-colors">
+            <button
+              className={`px-4 py-2 rounded-md transition-colors ${
+                currentLocation === "test"
+                  ? "bg-blue-500 text-white"
+                  : "hover:text-blue-600"
+              }`}
+              onClick={() => navigate("/test")}
+            >
               테스트
             </button>
             <button className="hover:text-blue-600 transition-colors">
