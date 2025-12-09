@@ -6,10 +6,6 @@ export interface TestAnswer {
   chooseAnswer: string;
 }
 
-export interface TestSubmitRequest {
-  answers: TestAnswer[];
-}
-
 /**
  * 테스트 문제 리스트 응답 DTO
  */
@@ -47,12 +43,9 @@ export const getTestList = async (): Promise<TestListResponse[]> => {
  * @param submitData 테스트 답변 리스트
  * @returns 테스트 결과
  */
-export const submitTest = async (submitData: TestSubmitRequest) => {
+export const submitTest = async (submitData: TestAnswer[]) => {
   try {
-    const response = await apiClient.post(
-      "/api/tests/submit",
-      submitData.answers
-    );
+    const response = await apiClient.post("/api/tests/submit", submitData);
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {

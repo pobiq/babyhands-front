@@ -151,9 +151,7 @@ export default function TestPage() {
         chooseAnswer: a.chooseAnswer,
       }));
 
-      await submitTest({
-        answers: submitData,
-      });
+      await submitTest(submitData);
 
       // 성공 시 결과를 표시하거나 메인 페이지로 이동
       alert(
